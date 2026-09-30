@@ -2,7 +2,7 @@
 
 PaddleMatch is a web application that helps pickleball players find suitable paddles and connect with other players based on their preferences. It provides paddle recommendations, player matchmaking, and a leaderboard using real data stored in a PostgreSQL database.
 
-**Live site:** https://ryence07.github.io/final-project-template/
+**Live site:** https://ryence07.github.io/PaddleMatch/
 **API:** https://final-project-template-ap0w.onrender.com
 **Demo video:** To be added in Week 3
 
@@ -237,12 +237,6 @@ Protected endpoints require an authenticated session.
 
 ---
 
-## Screenshots
-
-### Home Page
-
-<img width="1920" height="1310" alt="homeryence" src="https://github.com/user-attachments/assets/e84fed96-452e-4286-bc97-02987489be34" />
-
 ---
 
 ## Deploying
@@ -254,7 +248,7 @@ The frontend is deployed to GitHub Pages using the existing GitHub Actions workf
 Live site:
 
 ```
-https://ryence07.github.io/final-project-template/
+https://ryence07.github.io/PaddleMatch/
 ```
 
 ### API
