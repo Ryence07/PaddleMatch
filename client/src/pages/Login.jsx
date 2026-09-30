@@ -116,7 +116,7 @@ function Login() {
                                     event.target.value
                                 )
                             }
-                            placeholder="Choose a username"
+                            placeholder="Your username"
                             autoComplete="username"
                             required
                         />

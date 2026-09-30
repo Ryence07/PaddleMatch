@@ -169,8 +169,11 @@ function PlayerMatch() {
     }
 
     async function handleLogout() {
-        await logout()
-        window.location.href = '/login'
+        try {
+            await logout()
+        } finally {
+            window.location.href = `${import.meta.env.BASE_URL}login`
+        }
     }
 
     const filteredPlayers =
@@ -196,7 +199,7 @@ function PlayerMatch() {
         matches.filter(
             (match) =>
                 match.opponent_id ===
-                    currentPlayer?.id &&
+                currentPlayer?.id &&
                 match.status === 'pending'
         )
 
@@ -205,9 +208,9 @@ function PlayerMatch() {
             (match) =>
                 (
                     match.requester_id ===
-                        currentPlayer?.id ||
+                    currentPlayer?.id ||
                     match.opponent_id ===
-                        currentPlayer?.id
+                    currentPlayer?.id
                 ) &&
                 match.status === 'accepted'
         )
@@ -317,7 +320,7 @@ function PlayerMatch() {
                                     }
                                 >
                                     {processingMatch ===
-                                    match.id
+                                        match.id
                                         ? 'Accepting...'
                                         : 'Accept'}
                                 </button>
@@ -454,7 +457,7 @@ function PlayerMatch() {
                             }
                             requestStatus={
                                 requestStatuses[
-                                    player.id
+                                player.id
                                 ]
                             }
                         />
