@@ -21,10 +21,22 @@ const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
 app.use(
   cors({
     origin: allowedOrigins,
+    credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-PaddleMatch-Token',
+    ],
+    exposedHeaders: ['WWW-Authenticate'],
   })
 )
 
 app.use(express.json({ limit: '100kb' }))
+
+
+// =========================
+// HELPERS
+// =========================
 
 function parseId(value) {
   const id = Number(value)
@@ -57,7 +69,11 @@ async function verifyPassword(password, storedHash) {
   const salt = Buffer.from(saltHex, 'hex')
   const storedKey = Buffer.from(keyHex, 'hex')
 
-  const derivedKey = await scryptAsync(password, salt, storedKey.length)
+  const derivedKey = await scryptAsync(
+    password,
+    salt,
+    storedKey.length
+  )
 
   return crypto.timingSafeEqual(derivedKey, storedKey)
 }
@@ -76,23 +92,21 @@ async function createPasswordHash(password) {
 
 
 // =========================
-// AUTH MIDDLEWARE
+// PLAYER AUTH MIDDLEWARE
 // =========================
 
 async function requireAuth(request, response, next) {
   try {
-    const authorization = request.headers.authorization
+    const tokenHeader =
+      request.headers['x-paddlematch-token']
 
-    if (
-      !authorization ||
-      !authorization.startsWith('Bearer ')
-    ) {
+    if (!tokenHeader) {
       return response.status(401).json({
         error: 'Authentication required',
       })
     }
 
-    const token = authorization.slice(7).trim()
+    const token = tokenHeader.trim()
 
     if (!token) {
       return response.status(401).json({
@@ -104,24 +118,24 @@ async function requireAuth(request, response, next) {
 
     const result = await pool.query(
       `
-      SELECT
-        s.id AS session_id,
-        s.player_id,
-        s.expires_at,
-        p.username,
-        p.name,
-        p.skill_level,
-        p.playing_style,
-        p.availability,
-        p.wins,
-        p.losses,
-        p.points
-      FROM sessions s
-      JOIN players p
-        ON p.id = s.player_id
-      WHERE s.token_hash = $1
-        AND s.expires_at > CURRENT_TIMESTAMP
-      LIMIT 1
+        SELECT
+          s.id AS session_id,
+          s.player_id,
+          s.expires_at,
+          p.username,
+          p.name,
+          p.skill_level,
+          p.playing_style,
+          p.availability,
+          p.wins,
+          p.losses,
+          p.points
+        FROM sessions s
+        JOIN players p
+          ON p.id = s.player_id
+        WHERE s.token_hash = $1
+          AND s.expires_at > CURRENT_TIMESTAMP
+        LIMIT 1
       `,
       [tokenHash]
     )
@@ -138,6 +152,87 @@ async function requireAuth(request, response, next) {
   } catch (error) {
     next(error)
   }
+}
+
+
+// =========================
+// BASIC AUTH MIDDLEWARE
+// =========================
+
+// Outer access gate required by the professor's Option B.
+// Username and password come from environment variables.
+//
+// APP_USERNAME=your_private_username
+// APP_PASSWORD=your_private_password
+
+function requireBasicAuth(request, response, next) {
+  const authorization = request.headers.authorization
+
+  if (
+    !authorization ||
+    !authorization.startsWith('Basic ')
+  ) {
+    response.setHeader(
+      'WWW-Authenticate',
+      'Basic realm="PaddleMatch"'
+    )
+
+    return response.status(401).send('Authentication required')
+  }
+
+  const encodedCredentials = authorization.slice(6)
+
+  let decodedCredentials
+
+  try {
+    decodedCredentials = Buffer.from(
+      encodedCredentials,
+      'base64'
+    ).toString('utf8')
+  } catch {
+    response.setHeader(
+      'WWW-Authenticate',
+      'Basic realm="PaddleMatch"'
+    )
+
+    return response.status(401).send('Authentication required')
+  }
+
+  const separator = decodedCredentials.indexOf(':')
+
+  if (separator === -1) {
+    response.setHeader(
+      'WWW-Authenticate',
+      'Basic realm="PaddleMatch"'
+    )
+
+    return response.status(401).send('Authentication required')
+  }
+
+  const username = decodedCredentials.slice(
+    0,
+    separator
+  )
+
+  const password = decodedCredentials.slice(
+    separator + 1
+  )
+
+  if (
+    username !== process.env.APP_USERNAME ||
+    password !== process.env.APP_PASSWORD
+  ) {
+    response.setHeader(
+      'WWW-Authenticate',
+      'Basic realm="PaddleMatch"'
+    )
+
+    return response
+      .status(401)
+      .send('Invalid username or password')
+  }
+
+  next()
 }
 
 
@@ -169,6 +264,40 @@ app.get('/readyz', async (request, response) => {
 
 
 // =========================
+// BASIC AUTH GATE
+// =========================
+
+// Everything from the application API onward requires
+// the private deployment username/password.
+
+app.use(requireBasicAuth)
+
+
+// Browser enters the Basic Auth credentials here,
+// then gets redirected back to the frontend.
+
+app.get('/unlock', (request, response) => {
+  const requestedReturn = request.query.return
+
+  let returnUrl = allowedOrigins[0] || '/'
+
+  if (typeof requestedReturn === 'string') {
+    try {
+      const parsedUrl = new URL(requestedReturn)
+
+      if (allowedOrigins.includes(parsedUrl.origin)) {
+        returnUrl = parsedUrl.toString()
+      }
+    } catch {
+      // Use the default return URL.
+    }
+  }
+
+  response.redirect(returnUrl)
+})
+
+
+// =========================
 // AUTH ROUTES
 // =========================
 
@@ -192,10 +321,10 @@ app.post('/api/auth/login', async (request, response, next) => {
 
     const result = await pool.query(
       `
-      SELECT *
-      FROM players
-      WHERE username = $1
-      LIMIT 1
+        SELECT *
+        FROM players
+        WHERE username = $1
+        LIMIT 1
       `,
       [username]
     )
@@ -224,16 +353,16 @@ app.post('/api/auth/login', async (request, response, next) => {
 
     await pool.query(
       `
-      INSERT INTO sessions (
-        player_id,
-        token_hash,
-        expires_at
-      )
-      VALUES (
-        $1,
-        $2,
-        CURRENT_TIMESTAMP + INTERVAL '7 days'
-      )
+        INSERT INTO sessions (
+          player_id,
+          token_hash,
+          expires_at
+        )
+        VALUES (
+          $1,
+          $2,
+          CURRENT_TIMESTAMP + INTERVAL '7 days'
+        )
       `,
       [player.id, tokenHash]
     )
@@ -257,7 +386,11 @@ app.post('/api/auth/login', async (request, response, next) => {
   }
 })
 
-// Register a new player account
+
+// =========================
+// REGISTER
+// =========================
+
 app.post('/api/auth/register', async (request, response, next) => {
   try {
     const {
@@ -327,10 +460,10 @@ app.post('/api/auth/register', async (request, response, next) => {
 
     const existingUser = await pool.query(
       `
-      SELECT id
-      FROM players
-      WHERE username = $1
-      LIMIT 1
+        SELECT id
+        FROM players
+        WHERE username = $1
+        LIMIT 1
       `,
       [cleanUsername]
     )
@@ -346,38 +479,38 @@ app.post('/api/auth/register', async (request, response, next) => {
 
     const result = await pool.query(
       `
-      INSERT INTO players (
-        username,
-        password_hash,
-        name,
-        skill_level,
-        playing_style,
-        availability,
-        wins,
-        losses,
-        points
-      )
-      VALUES (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        $6,
-        0,
-        0,
-        0
-      )
-      RETURNING
-        id,
-        username,
-        name,
-        skill_level,
-        playing_style,
-        availability,
-        wins,
-        losses,
-        points
+        INSERT INTO players (
+          username,
+          password_hash,
+          name,
+          skill_level,
+          playing_style,
+          availability,
+          wins,
+          losses,
+          points
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          0,
+          0,
+          0
+        )
+        RETURNING
+          id,
+          username,
+          name,
+          skill_level,
+          playing_style,
+          availability,
+          wins,
+          losses,
+          points
       `,
       [
         cleanUsername,
@@ -406,6 +539,11 @@ app.post('/api/auth/register', async (request, response, next) => {
   }
 })
 
+
+// =========================
+// CURRENT USER
+// =========================
+
 app.get('/api/auth/me', requireAuth, (request, response) => {
   response.json({
     id: request.user.player_id,
@@ -420,28 +558,45 @@ app.get('/api/auth/me', requireAuth, (request, response) => {
   })
 })
 
-app.post('/api/auth/logout', requireAuth, async (request, response, next) => {
-  try {
-    const authorization = request.headers.authorization
-    const token = authorization.slice(7).trim()
-    const tokenHash = hashToken(token)
 
-    await pool.query(
-      `
-      DELETE FROM sessions
-      WHERE token_hash = $1
-      `,
-      [tokenHash]
-    )
+// =========================
+// LOGOUT
+// =========================
 
-    response.status(204).send()
-  } catch (error) {
-    next(error)
+app.post(
+  '/api/auth/logout',
+  requireAuth,
+  async (request, response, next) => {
+    try {
+      const token =
+        request.headers['x-paddlematch-token']
+
+      const tokenHash = hashToken(token)
+
+      await pool.query(
+        `
+          DELETE FROM sessions
+          WHERE token_hash = $1
+        `,
+        [tokenHash]
+      )
+
+      response.status(204).send()
+    } catch (error) {
+      next(error)
+    }
   }
-})
+)
 
 
-// Everything below this point requires a logged-in player.
+// =========================
+// PROTECTED PLAYER ROUTES
+// =========================
+
+// Everything below this point requires both:
+// 1. Basic Auth
+// 2. A logged-in PaddleMatch player
+
 app.use(requireAuth)
 
 
@@ -457,29 +612,32 @@ app.get('/api/paddles', async (request, response, next) => {
   }
 })
 
-app.get('/api/paddles/:id', async (request, response, next) => {
-  try {
-    const id = parseId(request.params.id)
+app.get(
+  '/api/paddles/:id',
+  async (request, response, next) => {
+    try {
+      const id = parseId(request.params.id)
 
-    if (id === null) {
-      return response.status(400).json({
-        error: 'Invalid paddle ID',
-      })
+      if (id === null) {
+        return response.status(400).json({
+          error: 'Invalid paddle ID',
+        })
+      }
+
+      const row = await paddles.getById(pool, id)
+
+      if (!row) {
+        return response.status(404).json({
+          error: 'Paddle not found',
+        })
+      }
+
+      response.json(row)
+    } catch (error) {
+      next(error)
     }
-
-    const row = await paddles.getById(pool, id)
-
-    if (!row) {
-      return response.status(404).json({
-        error: 'Paddle not found',
-      })
-    }
-
-    response.json(row)
-  } catch (error) {
-    next(error)
   }
-})
+)
 
 
 // =========================
@@ -494,29 +652,32 @@ app.get('/api/players', async (request, response, next) => {
   }
 })
 
-app.get('/api/players/:id', async (request, response, next) => {
-  try {
-    const id = parseId(request.params.id)
+app.get(
+  '/api/players/:id',
+  async (request, response, next) => {
+    try {
+      const id = parseId(request.params.id)
 
-    if (id === null) {
-      return response.status(400).json({
-        error: 'Invalid player ID',
-      })
+      if (id === null) {
+        return response.status(400).json({
+          error: 'Invalid player ID',
+        })
+      }
+
+      const row = await players.getById(pool, id)
+
+      if (!row) {
+        return response.status(404).json({
+          error: 'Player not found',
+        })
+      }
+
+      response.json(row)
+    } catch (error) {
+      next(error)
     }
-
-    const row = await players.getById(pool, id)
-
-    if (!row) {
-      return response.status(404).json({
-        error: 'Player not found',
-      })
-    }
-
-    response.json(row)
-  } catch (error) {
-    next(error)
   }
-})
+)
 
 
 // =========================
@@ -524,10 +685,13 @@ app.get('/api/players/:id', async (request, response, next) => {
 // =========================
 
 // Send match request
+
 app.post('/api/matches', async (request, response, next) => {
   try {
     const requesterId = request.user.player_id
-    const opponentId = parseId(request.body.opponent_id)
+    const opponentId = parseId(
+      request.body.opponent_id
+    )
 
     if (opponentId === null) {
       return response.status(400).json({
@@ -537,7 +701,8 @@ app.post('/api/matches', async (request, response, next) => {
 
     if (requesterId === opponentId) {
       return response.status(400).json({
-        error: 'A player cannot send a match request to themselves',
+        error:
+          'A player cannot send a match request to themselves',
       })
     }
 
@@ -554,22 +719,22 @@ app.post('/api/matches', async (request, response, next) => {
 
     const existingMatch = await pool.query(
       `
-  SELECT id
-  FROM matches
-  WHERE (
-    (
-      requester_id = $1
-      AND opponent_id = $2
-    )
-    OR
-    (
-      requester_id = $2
-      AND opponent_id = $1
-    )
-  )
-  AND status IN ('pending', 'accepted')
-  LIMIT 1
-  `,
+        SELECT id
+        FROM matches
+        WHERE (
+          (
+            requester_id = $1
+            AND opponent_id = $2
+          )
+          OR
+          (
+            requester_id = $2
+            AND opponent_id = $1
+          )
+        )
+        AND status IN ('pending', 'accepted')
+        LIMIT 1
+      `,
       [requesterId, opponentId]
     )
 
@@ -581,12 +746,12 @@ app.post('/api/matches', async (request, response, next) => {
 
     const result = await pool.query(
       `
-      INSERT INTO matches (
-        requester_id,
-        opponent_id
-      )
-      VALUES ($1, $2)
-      RETURNING *
+        INSERT INTO matches (
+          requester_id,
+          opponent_id
+        )
+        VALUES ($1, $2)
+        RETURNING *
       `,
       [requesterId, opponentId]
     )
@@ -599,37 +764,38 @@ app.post('/api/matches', async (request, response, next) => {
 
 
 // Get only matches involving logged-in player
+
 app.get('/api/matches', async (request, response, next) => {
   try {
     const playerId = request.user.player_id
 
     const result = await pool.query(
       `
-      SELECT
-        m.id,
-        m.status,
-        m.winner_id,
-        m.created_at,
+        SELECT
+          m.id,
+          m.status,
+          m.winner_id,
+          m.created_at,
 
-        m.requester_id,
-        requester.name AS requester_name,
+          m.requester_id,
+          requester.name AS requester_name,
 
-        m.opponent_id,
-        opponent.name AS opponent_name
+          m.opponent_id,
+          opponent.name AS opponent_name
 
-      FROM matches m
+        FROM matches m
 
-      JOIN players requester
-        ON requester.id = m.requester_id
+        JOIN players requester
+          ON requester.id = m.requester_id
 
-      JOIN players opponent
-        ON opponent.id = m.opponent_id
+        JOIN players opponent
+          ON opponent.id = m.opponent_id
 
-      WHERE
-        m.requester_id = $1
-        OR m.opponent_id = $1
+        WHERE
+          m.requester_id = $1
+          OR m.opponent_id = $1
 
-      ORDER BY m.created_at DESC
+        ORDER BY m.created_at DESC
       `,
       [playerId]
     )
@@ -642,144 +808,154 @@ app.get('/api/matches', async (request, response, next) => {
 
 
 // Accept request
-app.patch('/api/matches/:id/accept', async (request, response, next) => {
-  try {
-    const id = parseId(request.params.id)
-    const playerId = request.user.player_id
 
-    if (id === null) {
-      return response.status(400).json({
-        error: 'Invalid match ID',
-      })
+app.patch(
+  '/api/matches/:id/accept',
+  async (request, response, next) => {
+    try {
+      const id = parseId(request.params.id)
+      const playerId = request.user.player_id
+
+      if (id === null) {
+        return response.status(400).json({
+          error: 'Invalid match ID',
+        })
+      }
+
+      const result = await pool.query(
+        `
+          UPDATE matches
+          SET status = 'accepted'
+          WHERE id = $1
+            AND opponent_id = $2
+            AND status = 'pending'
+          RETURNING *
+        `,
+        [id, playerId]
+      )
+
+      if (result.rows.length === 0) {
+        return response.status(404).json({
+          error: 'Pending match request not found',
+        })
+      }
+
+      response.json(result.rows[0])
+    } catch (error) {
+      next(error)
     }
-
-    const result = await pool.query(
-      `
-      UPDATE matches
-      SET status = 'accepted'
-
-      WHERE id = $1
-        AND opponent_id = $2
-        AND status = 'pending'
-
-      RETURNING *
-      `,
-      [id, playerId]
-    )
-
-    if (result.rows.length === 0) {
-      return response.status(404).json({
-        error: 'Pending match request not found',
-      })
-    }
-
-    response.json(result.rows[0])
-  } catch (error) {
-    next(error)
   }
-})
+)
 
 
 // Record result
-app.patch('/api/matches/:id/result', async (request, response, next) => {
-  const client = await pool.connect()
 
-  try {
-    const id = parseId(request.params.id)
-    const winnerId = parseId(request.body.winner_id)
-    const currentPlayerId = request.user.player_id
+app.patch(
+  '/api/matches/:id/result',
+  async (request, response, next) => {
+    const client = await pool.connect()
 
-    if (id === null || winnerId === null) {
-      return response.status(400).json({
-        error: 'Invalid match ID or winner ID',
-      })
-    }
+    try {
+      const id = parseId(request.params.id)
+      const winnerId = parseId(
+        request.body.winner_id
+      )
+      const currentPlayerId =
+        request.user.player_id
 
-    await client.query('BEGIN')
+      if (id === null || winnerId === null) {
+        return response.status(400).json({
+          error: 'Invalid match ID or winner ID',
+        })
+      }
 
-    const matchResult = await client.query(
-      `
-      SELECT *
-      FROM matches
-      WHERE id = $1
-        AND status = 'accepted'
-        AND (
-          requester_id = $2
-          OR opponent_id = $2
-        )
-      FOR UPDATE
-      `,
-      [id, currentPlayerId]
-    )
+      await client.query('BEGIN')
 
-    if (matchResult.rows.length === 0) {
+      const matchResult = await client.query(
+        `
+          SELECT *
+          FROM matches
+          WHERE id = $1
+            AND status = 'accepted'
+            AND (
+              requester_id = $2
+              OR opponent_id = $2
+            )
+          FOR UPDATE
+        `,
+        [id, currentPlayerId]
+      )
+
+      if (matchResult.rows.length === 0) {
+        await client.query('ROLLBACK')
+
+        return response.status(404).json({
+          error: 'Accepted match not found',
+        })
+      }
+
+      const match = matchResult.rows[0]
+
+      if (
+        winnerId !== match.requester_id &&
+        winnerId !== match.opponent_id
+      ) {
+        await client.query('ROLLBACK')
+
+        return response.status(400).json({
+          error:
+            'Winner must be one of the players in the match',
+        })
+      }
+
+      const loserId =
+        winnerId === match.requester_id
+          ? match.opponent_id
+          : match.requester_id
+
+      await client.query(
+        `
+          UPDATE players
+          SET
+            wins = wins + 1,
+            points = points + 3
+          WHERE id = $1
+        `,
+        [winnerId]
+      )
+
+      await client.query(
+        `
+          UPDATE players
+          SET losses = losses + 1
+          WHERE id = $1
+        `,
+        [loserId]
+      )
+
+      const updatedMatch = await client.query(
+        `
+          UPDATE matches
+          SET
+            status = 'completed',
+            winner_id = $1
+          WHERE id = $2
+          RETURNING *
+        `,
+        [winnerId, id]
+      )
+
+      await client.query('COMMIT')
+
+      response.json(updatedMatch.rows[0])
+    } catch (error) {
       await client.query('ROLLBACK')
-
-      return response.status(404).json({
-        error: 'Accepted match not found',
-      })
+      next(error)
+    } finally {
+      client.release()
     }
-
-    const match = matchResult.rows[0]
-
-    if (
-      winnerId !== match.requester_id &&
-      winnerId !== match.opponent_id
-    ) {
-      await client.query('ROLLBACK')
-
-      return response.status(400).json({
-        error: 'Winner must be one of the players in the match',
-      })
-    }
-
-    const loserId =
-      winnerId === match.requester_id
-        ? match.opponent_id
-        : match.requester_id
-
-    await client.query(
-      `
-      UPDATE players
-      SET
-        wins = wins + 1,
-        points = points + 3
-      WHERE id = $1
-      `,
-      [winnerId]
-    )
-
-    await client.query(
-      `
-      UPDATE players
-      SET losses = losses + 1
-      WHERE id = $1
-      `,
-      [loserId]
-    )
-
-    const updatedMatch = await client.query(
-      `
-      UPDATE matches
-      SET
-        status = 'completed',
-        winner_id = $1
-      WHERE id = $2
-      RETURNING *
-      `,
-      [winnerId, id]
-    )
-
-    await client.query('COMMIT')
-
-    response.json(updatedMatch.rows[0])
-  } catch (error) {
-    await client.query('ROLLBACK')
-    next(error)
-  } finally {
-    client.release()
   }
-})
+)
 
 
 // =========================

@@ -14,6 +14,15 @@ function clearToken() {
   sessionStorage.removeItem(TOKEN_KEY)
 }
 
+function redirectToBasicAuth() {
+  const returnUrl = window.location.href
+
+  const unlockUrl =
+    `${BASE}/unlock?return=${encodeURIComponent(returnUrl)}`
+
+  window.location.assign(unlockUrl)
+}
+
 async function request(
   path,
   options = {},
@@ -24,6 +33,12 @@ async function request(
     ...options.headers,
   }
 
+  /*
+   * Player authentication uses our session token.
+   *
+   * We intentionally do NOT put it in the Authorization header
+   * because that header is reserved for HTTP Basic Authentication.
+   */
   if (requiresAuth) {
     const token = getToken()
 
@@ -31,13 +46,31 @@ async function request(
       throw new Error('You are not logged in')
     }
 
-    headers.Authorization = `Bearer ${token}`
+    headers['X-PaddleMatch-Token'] = token
   }
 
   const response = await fetch(`${BASE}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   })
+
+  /*
+   * The server uses HTTP Basic Authentication for the deployment gate.
+   * If the browser has not authenticated yet, send the user to /unlock.
+   */
+  const basicChallenge =
+    response.headers
+      .get('WWW-Authenticate')
+      ?.startsWith('Basic ')
+
+  if (response.status === 401 && basicChallenge) {
+    redirectToBasicAuth()
+
+    throw new Error(
+      'PaddleMatch deployment authentication required'
+    )
+  }
 
   if (!response.ok) {
     let message = `${response.status} ${response.statusText}`
@@ -48,7 +81,9 @@ async function request(
       if (body?.error) {
         message = body.error
       }
-    } catch { }
+    } catch {
+      // Response was not JSON.
+    }
 
     if (response.status === 401) {
       clearToken()
@@ -67,10 +102,7 @@ async function request(
 // AUTH API
 // =========================
 
-export const login = async (
-  username,
-  password
-) => {
+export const login = async (username, password) => {
   const data = await request(
     '/api/auth/login',
     {
@@ -88,8 +120,6 @@ export const login = async (
   return data
 }
 
-
-// Register a new player account
 export const register = async ({
   name,
   username,
@@ -115,24 +145,18 @@ export const register = async ({
   )
 }
 
-
 export const getCurrentPlayer = () =>
   request('/api/auth/me')
 
-
 export const logout = async () => {
   try {
-    await request(
-      '/api/auth/logout',
-      {
-        method: 'POST',
-      }
-    )
+    await request('/api/auth/logout', {
+      method: 'POST',
+    })
   } finally {
     clearToken()
   }
 }
-
 
 export const isLoggedIn = () =>
   Boolean(getToken())
@@ -164,31 +188,27 @@ export const getPlayer = (id) =>
 // MATCH API
 // =========================
 
-export const sendMatchRequest = (
-  opponentId
-) =>
-  request('/api/matches', {
-    method: 'POST',
-    body: JSON.stringify({
-      opponent_id: opponentId,
-    }),
-  })
-
+export const sendMatchRequest = (opponentId) =>
+  request(
+    '/api/matches',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        opponent_id: opponentId,
+      }),
+    }
+  )
 
 export const listMatches = () =>
   request('/api/matches')
 
-
-export const acceptMatch = (
-  matchId
-) =>
+export const acceptMatch = (matchId) =>
   request(
     `/api/matches/${matchId}/accept`,
     {
       method: 'PATCH',
     }
   )
-
 
 export const recordMatchResult = (
   matchId,

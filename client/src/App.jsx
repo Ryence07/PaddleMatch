@@ -8,7 +8,7 @@ import {
 import Footer from './components/Footer'
 import Header from './components/Header'
 
-import Home from './pages/Home'
+import AccessGate from './pages/AccessGate'
 import Leaderboard from './pages/Leaderboard'
 import Login from './pages/Login'
 import PaddleMatch from './pages/PaddleMatch'
@@ -37,7 +37,7 @@ function App() {
 
         <Route
           path="/"
-          element={<Home />}
+          element={<AccessGate />}
         />
 
         <Route
