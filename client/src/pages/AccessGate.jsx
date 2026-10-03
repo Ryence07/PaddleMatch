@@ -7,7 +7,7 @@ function AccessGate() {
         const appUrl =
             window.location.origin +
             import.meta.env.BASE_URL +
-            'login'
+            'access?authenticated=true'
 
         const unlockUrl =
             `${apiBase}/unlock?return=${encodeURIComponent(appUrl)}`
