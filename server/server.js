@@ -957,6 +957,41 @@ app.patch(
   }
 )
 
+app.patch('/api/matches/:id/decline', async (request, response, next) => {
+  try {
+    const matchId = Number(request.params.id)
+    const currentPlayerId = request.user.player_id
+
+    if (!Number.isInteger(matchId)) {
+      return response.status(400).json({
+        error: 'Invalid match ID',
+      })
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE matches
+        SET status = 'declined'
+        WHERE id = $1
+          AND opponent_id = $2
+          AND status = 'pending'
+        RETURNING *
+      `,
+      [matchId, currentPlayerId]
+    )
+
+    if (result.rows.length === 0) {
+      return response.status(404).json({
+        error: 'Match request not found or cannot be declined',
+      })
+    }
+
+    return response.json(result.rows[0])
+  } catch (error) {
+    next(error)
+  }
+})
+
 
 // =========================
 // 404

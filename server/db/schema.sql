@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS matches (
         ON DELETE CASCADE,
 
     status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'accepted', 'completed')),
+        CHECK (status IN ('pending', 'accepted', 'declined', 'completed')),
 
     winner_id INTEGER
         REFERENCES players(id)

@@ -22,5 +22,6 @@ export const {
   sendMatchRequest,
   listMatches,
   acceptMatch,
+  declineMatch,
   recordMatchResult,
 } = implementation

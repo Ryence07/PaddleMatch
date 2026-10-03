@@ -45,7 +45,9 @@ function PlayerCard({
                     ? 'Sending...'
                     : requestStatus === 'sent'
                         ? 'Request Sent'
-                        : 'Match Up'}
+                        : requestStatus === 'declined'
+                            ? 'Request Again'
+                            : 'Match Up'}
             </button>
         </article>
     )

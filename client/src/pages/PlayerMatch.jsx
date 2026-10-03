@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 
 import {
     acceptMatch,
+    declineMatch,
     getCurrentPlayer,
     listMatches,
     listPlayers,
     logout,
     recordMatchResult,
-    sendMatchRequest,
+    sendMatchRequest
 } from '../api'
 
 import PlayerCard from '../components/PlayerCard'
@@ -51,19 +52,42 @@ function PlayerMatch() {
             setMatches(matchData)
 
             const statuses = {}
+            const latestMatches = {}
 
             matchData.forEach((match) => {
-                if (
-                    match.requester_id === player.id &&
-                    (
-                        match.status === 'pending' ||
-                        match.status === 'accepted'
-                    )
-                ) {
-                    statuses[match.opponent_id] =
-                        'sent'
+                const otherPlayerId =
+                    match.requester_id === player.id
+                        ? match.opponent_id
+                        : match.requester_id
+
+                if (!latestMatches[otherPlayerId]) {
+                    latestMatches[otherPlayerId] = match
                 }
             })
+
+            Object.values(latestMatches).forEach(
+                (match) => {
+                    if (
+                        match.requester_id ===
+                        player.id
+                    ) {
+                        if (
+                            match.status === 'pending' ||
+                            match.status === 'accepted'
+                        ) {
+                            statuses[match.opponent_id] =
+                                'sent'
+                        }
+
+                        if (
+                            match.status === 'declined'
+                        ) {
+                            statuses[match.opponent_id] =
+                                'declined'
+                        }
+                    }
+                }
+            )
 
             setRequestStatuses(statuses)
         } catch (error) {
@@ -147,6 +171,20 @@ function PlayerMatch() {
         }
     }
 
+    async function handleDecline(matchId) {
+        setError('')
+        setProcessingMatch(matchId)
+
+        try {
+            await declineMatch(matchId)
+            await loadData()
+        } catch (error) {
+            setError(error.message)
+        } finally {
+            setProcessingMatch(null)
+        }
+    }
+
     async function handleWinner(
         matchId,
         winnerId
@@ -172,7 +210,8 @@ function PlayerMatch() {
         try {
             await logout()
         } finally {
-            window.location.href = `${import.meta.env.BASE_URL}login`
+            window.location.href =
+                `${import.meta.env.BASE_URL}login`
         }
     }
 
@@ -213,6 +252,34 @@ function PlayerMatch() {
                     currentPlayer?.id
                 ) &&
                 match.status === 'accepted'
+        )
+
+    const latestMatches = {}
+
+    matches.forEach((match) => {
+        const otherPlayerId =
+            match.requester_id === currentPlayer?.id
+                ? match.opponent_id
+                : match.requester_id
+
+        const existingMatch =
+            latestMatches[otherPlayerId]
+
+        if (
+            !existingMatch ||
+            new Date(match.created_at) >
+            new Date(existingMatch.created_at)
+        ) {
+            latestMatches[otherPlayerId] = match
+        }
+    })
+
+    const declinedRequests =
+        Object.values(latestMatches).filter(
+            (match) =>
+                match.requester_id ===
+                currentPlayer?.id &&
+                match.status === 'declined'
         )
 
     if (loading) {
@@ -278,8 +345,36 @@ function PlayerMatch() {
                 )}
             </section>
 
+            {declinedRequests.length > 0 && (
+                <section className="match-section">
+                    <h2>
+                        Match Notifications
+                    </h2>
 
-            {/* INCOMING REQUESTS */}
+                    {declinedRequests.map(
+                        (match) => (
+                            <article
+                                className="match-notification"
+                                key={match.id}
+                            >
+                                <div>
+                                    <h3>
+                                        Match request declined
+                                    </h3>
+
+                                    <p>
+                                        {
+                                            match.opponent_name
+                                        }{' '}
+                                        declined your request
+                                        to play.
+                                    </p>
+                                </div>
+                            </article>
+                        )
+                    )}
+                </section>
+            )}
 
             {incomingRequests.length > 0 && (
                 <section className="match-section">
@@ -306,32 +401,47 @@ function PlayerMatch() {
                                     </p>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    className="primary-button"
-                                    onClick={() =>
-                                        handleAccept(
+                                <div className="match-actions">
+                                    <button
+                                        type="button"
+                                        className="primary-button"
+                                        onClick={() =>
+                                            handleAccept(
+                                                match.id
+                                            )
+                                        }
+                                        disabled={
+                                            processingMatch ===
                                             match.id
-                                        )
-                                    }
-                                    disabled={
-                                        processingMatch ===
-                                        match.id
-                                    }
-                                >
-                                    {processingMatch ===
-                                        match.id
-                                        ? 'Accepting...'
-                                        : 'Accept'}
-                                </button>
+                                        }
+                                    >
+                                        {processingMatch ===
+                                            match.id
+                                            ? 'Processing...'
+                                            : 'Accept'}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="secondary-button"
+                                        onClick={() =>
+                                            handleDecline(
+                                                match.id
+                                            )
+                                        }
+                                        disabled={
+                                            processingMatch ===
+                                            match.id
+                                        }
+                                    >
+                                        Decline
+                                    </button>
+                                </div>
                             </article>
                         )
                     )}
                 </section>
             )}
-
-
-            {/* ACCEPTED MATCHES */}
 
             {acceptedMatches.length > 0 && (
                 <section className="match-section">
@@ -380,7 +490,6 @@ function PlayerMatch() {
                                         {
                                             match.requester_name
                                         }{' '}
-                                        Won
                                     </button>
 
                                     <button
@@ -400,7 +509,6 @@ function PlayerMatch() {
                                         {
                                             match.opponent_name
                                         }{' '}
-                                        Won
                                     </button>
                                 </div>
                             </article>
@@ -408,9 +516,6 @@ function PlayerMatch() {
                     )}
                 </section>
             )}
-
-
-            {/* PLAYER FILTER */}
 
             <section className="player-filter">
                 <label>
@@ -442,9 +547,6 @@ function PlayerMatch() {
                     </select>
                 </label>
             </section>
-
-
-            {/* PLAYER LIST */}
 
             <section className="player-list">
                 {filteredPlayers.map(

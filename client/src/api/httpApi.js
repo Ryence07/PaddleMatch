@@ -210,6 +210,14 @@ export const acceptMatch = (matchId) =>
     }
   )
 
+export const declineMatch = (matchId) =>
+  request(
+    `/api/matches/${matchId}/decline`,
+    {
+      method: 'PATCH',
+    }
+  )
+
 export const recordMatchResult = (
   matchId,
   winnerId
