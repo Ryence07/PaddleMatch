@@ -97,6 +97,14 @@
 - **Commit:** https://github.com/Ryence07/PaddleMatch/commit/666a2f8a4867c2b2d19b8b0f709e97e9f4005bf3
 - **What it does and why it is built this way:** I worked on the paddle display section of the Paddle Match page, including how the paddle information and images are shown. I used this structure to make the available paddles easier for users to view and compare.
 
+- **File:** client/src/components/Footer.jsx
+- **Commit:** https://github.com/Ryence07/PaddleMatch/commit/6428143f155c1f20052c09414e6ab69d7f1397f5
+- **What it does and why it is built this way:** I worked on the changes made to the footer, including adding the PaddleMatch title, social media icons, email link, and copyright section. I also used `import.meta.env.BASE_URL` for the image paths so the footer assets work correctly when the application is deployed under the GitHub Pages `/PaddleMatch/` path.
+
+- **File:** client/src/components/SelectField.jsx
+- **Commit:** https://github.com/Ryence07/PaddleMatch/commit/133a3de629a9efcc1a1c9cc6fa31434ababa5404
+- **What it does and why it is built this way:** I worked on the SelectField component to create a reusable dropdown field for the PaddleMatch forms. It receives the label, available options, current value, and change handler as props, allowing the same component to be reused for different selection fields while keeping the form structure consistent.
+
 ### The AI-written part I understand best
 
 - **File:** client/src/components/PlayerCard.jsx
