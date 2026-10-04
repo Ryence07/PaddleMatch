@@ -1,10 +1,12 @@
 # PaddleMatch
 
+[![Made with AI](https://img.shields.io/badge/Made_with-AI_assistance-blue)](https://github.com/Ryence07/PaddleMatch/blob/5d1661681835693d47cfec947b957cbbbc2fa4e1/AI-USAGE.md)
+
 PaddleMatch is a web application that helps pickleball players find suitable paddles and connect with other players based on their preferences. It provides paddle recommendations, player matchmaking, and a leaderboard using real data stored in a PostgreSQL database.
 
-**Live site:** https://ryence07.github.io/PaddleMatch/
-**API:** https://final-project-template-ap0w.onrender.com
-**Demo video:** To be added in Week 3
+**Live site:** https://ryence07.github.io/PaddleMatch/  
+**API:** [API link](https://final-project-template-ap0w.onrender.com)  
+**Demo video:** [PaddleMatch Demo](https://drive.google.com/drive/folders/17jWYAvV4oCgVH8NHXdZHq_b09t4mJNYW?usp=sharing)
 
 <img width="1366" height="644" alt="loginpaddlematch" src="https://github.com/user-attachments/assets/b60041f2-2683-44d1-870e-c7d7761e0554" />
 <img width="1366" height="1476" alt="paddlematchpage" src="https://github.com/user-attachments/assets/d9686b75-b6d4-4b4e-aed0-7d70d5cb72ca" />
@@ -271,21 +273,45 @@ The API connects to the database using the `DATABASE_URL` environment variable c
 
 ## Project structure
 
-```
+```text
 client/
 ├── public/
-│   ├── images/
-│   └── pages/
+│   └── images/
+│       ├── assets/
+│       │   ├── fb.png
+│       │   ├── ig.png
+│       │   └── mail.png
+│       ├── paddles/
+│       │   ├── paddle-franklin-signature.png
+│       │   ├── paddle-hyperion.png
+│       │   ├── paddle-joola-essentials.png
+│       │   ├── paddle-slk-evo-control.png
+│       │   └── paddle-slk-halo-power.png
+│       └── paddlematch-hero.png
 ├── src/
 │   ├── api/
 │   │   ├── httpApi.js
 │   │   ├── index.js
-│   │   └── mockApi.js
+│   │   ├── mockApi.js
+│   │   └── seed.json
 │   ├── components/
+│   │   ├── DemoNotice.jsx
+│   │   ├── Footer.jsx
+│   │   ├── Header.jsx
+│   │   ├── PaddleCard.jsx
+│   │   ├── PaddleDetailsModal.jsx
+│   │   ├── PlayerCard.jsx
+│   │   └── SelectField.jsx
 │   ├── data/
 │   │   ├── paddles.js
 │   │   └── players.js
 │   ├── pages/
+│   │   ├── AccessGate.jsx
+│   │   ├── Home.jsx
+│   │   ├── Leaderboard.jsx
+│   │   ├── Login.jsx
+│   │   ├── PaddleMatch.jsx
+│   │   └── PlayerMatch.jsx
 │   ├── App.jsx
 │   ├── main.jsx
 │   └── styles.css
@@ -297,23 +323,47 @@ client/
 server/
 ├── db/
 │   ├── pool.js
+│   ├── run.js
 │   ├── schema.sql
-│   ├── seed.js
 │   └── seed.sql
 ├── .env.example
+├── Dockerfile
 ├── package.json
-├── server.js
-└── Dockerfile
+├── paddlesRepo.js
+├── playersRepo.js
+└── server.js
 
 docs/
-├── policy/
-├── posts/
-├── scripts/
-└── social/
+├── assets/
+│   ├── home-desktop.png
+│   ├── home-phone.png
+│   ├── leaderboard-desktop.png
+│   ├── leaderboard-phone.png
+│   ├── login-desktop.png
+│   ├── login-phone.png
+│   ├── paddle-match-desktop.png
+│   ├── paddle-match-phone.png
+│   ├── paddle-modal-desktop.png
+│   ├── paddle-modal-phone.png
+│   ├── player-match-desktop.png
+│   ├── player-match-phone.png
+│   ├── signup-desktop.png
+│   └── signup-phone.png
+├── 01-proposal.md
+├── 02-mockup.md
+├── 03-design-system.md
+├── 04-weekly-reports.md
+├── 05-demo-video.md
+├── 06-security-and-privacy.md
+└── README.md
 
 AI-USAGE.md
-README.md
 LICENSE
+README.md
+START-HERE.md
+compose.yml
+.env.example
+.gitignore
 ```
 
 ---
@@ -367,4 +417,6 @@ Holy Angel University
 
 This project was developed with assistance from ChatGPT for coding guidance, debugging, frontend development, backend/API development, authentication, and deployment troubleshooting. I reviewed, tested, and modified the suggestions to fit the PaddleMatch project.
 
-See `AI-USAGE.md` for the complete record of AI use, including what was changed, where AI suggestions were incorrect, and which parts I worked on myself.
+**AI assistant:** ChatGPT — used throughout development for coding assistance, debugging, implementation guidance, and troubleshooting.
+
+See [AI-USAGE.md](https://github.com/Ryence07/PaddleMatch/blob/5d1661681835693d47cfec947b957cbbbc2fa4e1/AI-USAGE.md) for the complete record of AI use, including what was changed, where AI suggestions were incorrect, and which parts I worked on myself.
