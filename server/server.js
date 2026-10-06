@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import crypto from 'crypto'
 import express from 'express'
@@ -32,6 +33,7 @@ app.use(
 )
 
 app.use(express.json({ limit: '100kb' }))
+app.use(cookieParser())
 
 function parseId(value) {
   const id = Number(value)
@@ -144,8 +146,71 @@ async function requireAuth(request, response, next) {
   }
 }
 
+function createDeploymentAuthToken() {
+  const timestamp = Date.now().toString()
+
+  const signature = crypto
+    .createHmac(
+      'sha256',
+      process.env.APP_PASSWORD || ''
+    )
+    .update(timestamp)
+    .digest('hex')
+
+  return `${timestamp}.${signature}`
+}
+
+function verifyDeploymentAuthToken(token) {
+  if (!token || !token.includes('.')) {
+    return false
+  }
+
+  const [timestamp, signature] = token.split('.')
+
+  if (!timestamp || !signature) {
+    return false
+  }
+
+  const timestampNumber = Number(timestamp)
+
+  if (!Number.isFinite(timestampNumber)) {
+    return false
+  }
+
+  if (Date.now() - timestampNumber > 24 * 60 * 60 * 1000) {
+    return false
+  }
+
+  const expectedSignature = crypto
+    .createHmac(
+      'sha256',
+      process.env.APP_PASSWORD || ''
+    )
+    .update(timestamp)
+    .digest('hex')
+
+  const providedBuffer = Buffer.from(signature, 'utf8')
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8')
+
+  if (providedBuffer.length !== expectedBuffer.length) {
+    return false
+  }
+
+  return crypto.timingSafeEqual(
+    providedBuffer,
+    expectedBuffer
+  )
+}
+
 function requireBasicAuth(request, response, next) {
   if (request.method === 'OPTIONS') {
+    return next()
+  }
+
+  const deploymentToken =
+    request.cookies?.paddlematch_deployment_auth
+
+  if (verifyDeploymentAuthToken(deploymentToken)) {
     return next()
   }
 
@@ -215,8 +280,23 @@ function requireBasicAuth(request, response, next) {
       .send('Invalid username or password')
   }
 
+  const newDeploymentToken = createDeploymentAuthToken()
+
+  response.cookie(
+    'paddlematch_deployment_auth',
+    newDeploymentToken,
+    {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
+    }
+  )
+
   next()
 }
+
 
 app.get('/healthz', (request, response) => {
   response.json({ ok: true })
