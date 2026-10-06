@@ -1,6 +1,22 @@
 const BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const TOKEN_KEY = 'paddlematch_token'
+const GATE_KEY = 'paddlematch_gate'
+
+function captureGateToken() {
+  try {
+    const url = new URL(window.location.href)
+    const gate = url.searchParams.get('gate')
+
+    if (gate) {
+      sessionStorage.setItem(GATE_KEY, gate)
+      url.searchParams.delete('gate')
+      window.history.replaceState({}, '', url.toString())
+    }
+  } catch {}
+}
+
+captureGateToken()
 
 function getToken() {
   return sessionStorage.getItem(TOKEN_KEY)
@@ -15,6 +31,8 @@ function clearToken() {
 }
 
 function redirectToBasicAuth() {
+  sessionStorage.removeItem(GATE_KEY)
+
   const returnUrl = window.location.href
 
   const unlockUrl =
@@ -31,6 +49,12 @@ async function request(
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
+  }
+
+  const gate = sessionStorage.getItem(GATE_KEY)
+
+  if (gate) {
+    headers['X-PaddleMatch-Gate'] = gate
   }
 
   if (requiresAuth) {
@@ -71,9 +95,7 @@ async function request(
       if (body?.error) {
         message = body.error
       }
-    } catch {
-
-    }
+    } catch {}
 
     if (response.status === 401) {
       clearToken()

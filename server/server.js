@@ -27,6 +27,7 @@ app.use(
       'Content-Type',
       'Authorization',
       'X-PaddleMatch-Token',
+      'X-PaddleMatch-Gate',
     ],
     exposedHeaders: ['WWW-Authenticate'],
   })
@@ -207,10 +208,14 @@ function requireBasicAuth(request, response, next) {
     return next()
   }
 
+  const gateHeader = request.headers['x-paddlematch-gate']
   const deploymentToken =
     request.cookies?.paddlematch_deployment_auth
 
-  if (verifyDeploymentAuthToken(deploymentToken)) {
+  if (
+    verifyDeploymentAuthToken(gateHeader) ||
+    verifyDeploymentAuthToken(deploymentToken)
+  ) {
     return next()
   }
 
@@ -280,11 +285,9 @@ function requireBasicAuth(request, response, next) {
       .send('Invalid username or password')
   }
 
-  const newDeploymentToken = createDeploymentAuthToken()
-
   response.cookie(
     'paddlematch_deployment_auth',
-    newDeploymentToken,
+    createDeploymentAuthToken(),
     {
       httpOnly: true,
       secure: true,
@@ -325,20 +328,27 @@ app.use(requireBasicAuth)
 app.get('/unlock', (request, response) => {
   const requestedReturn = request.query.return
 
-  let returnUrl = allowedOrigins[0] || '/'
+  let returnUrl
+
+  try {
+    returnUrl = new URL(allowedOrigins[0])
+  } catch {
+    return response.redirect('/')
+  }
 
   if (typeof requestedReturn === 'string') {
     try {
       const parsedUrl = new URL(requestedReturn)
 
       if (allowedOrigins.includes(parsedUrl.origin)) {
-        returnUrl = parsedUrl.toString()
+        returnUrl = parsedUrl
       }
-    } catch {
-    }
+    } catch {}
   }
 
-  response.redirect(returnUrl)
+  returnUrl.searchParams.set('gate', createDeploymentAuthToken())
+
+  response.redirect(returnUrl.toString())
 })
 
 app.post('/api/auth/login', async (request, response, next) => {
