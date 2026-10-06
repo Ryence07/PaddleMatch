@@ -33,11 +33,6 @@ app.use(
 
 app.use(express.json({ limit: '100kb' }))
 
-
-// =========================
-// HELPERS
-// =========================
-
 function parseId(value) {
   const id = Number(value)
 
@@ -89,11 +84,6 @@ async function createPasswordHash(password) {
 
   return `${salt.toString('hex')}:${derivedKey.toString('hex')}`
 }
-
-
-// =========================
-// PLAYER AUTH MIDDLEWARE
-// =========================
 
 async function requireAuth(request, response, next) {
   try {
@@ -154,18 +144,11 @@ async function requireAuth(request, response, next) {
   }
 }
 
-
-// =========================
-// BASIC AUTH MIDDLEWARE
-// =========================
-
-// Outer access gate required by the professor's Option B.
-// Username and password come from environment variables.
-//
-// APP_USERNAME=your_private_username
-// APP_PASSWORD=your_private_password
-
 function requireBasicAuth(request, response, next) {
+  if (request.method === 'OPTIONS') {
+    return next()
+  }
+
   const authorization = request.headers.authorization
 
   if (
@@ -235,11 +218,6 @@ function requireBasicAuth(request, response, next) {
   next()
 }
 
-
-// =========================
-// HEALTH
-// =========================
-
 app.get('/healthz', (request, response) => {
   response.json({ ok: true })
 })
@@ -262,19 +240,7 @@ app.get('/readyz', async (request, response) => {
   }
 })
 
-
-// =========================
-// BASIC AUTH GATE
-// =========================
-
-// Everything from the application API onward requires
-// the private deployment username/password.
-
 app.use(requireBasicAuth)
-
-
-// Browser enters the Basic Auth credentials here,
-// then gets redirected back to the frontend.
 
 app.get('/unlock', (request, response) => {
   const requestedReturn = request.query.return
@@ -289,17 +255,11 @@ app.get('/unlock', (request, response) => {
         returnUrl = parsedUrl.toString()
       }
     } catch {
-      // Use the default return URL.
     }
   }
 
   response.redirect(returnUrl)
 })
-
-
-// =========================
-// AUTH ROUTES
-// =========================
 
 app.post('/api/auth/login', async (request, response, next) => {
   try {
@@ -385,11 +345,6 @@ app.post('/api/auth/login', async (request, response, next) => {
     next(error)
   }
 })
-
-
-// =========================
-// REGISTER
-// =========================
 
 app.post('/api/auth/register', async (request, response, next) => {
   try {
@@ -527,8 +482,6 @@ app.post('/api/auth/register', async (request, response, next) => {
       player: result.rows[0],
     })
   } catch (error) {
-    // Prevent duplicate usernames if two
-    // registrations happen at the same time.
     if (error.code === '23505') {
       return response.status(409).json({
         error: 'Username is already taken',
@@ -538,11 +491,6 @@ app.post('/api/auth/register', async (request, response, next) => {
     next(error)
   }
 })
-
-
-// =========================
-// CURRENT USER
-// =========================
 
 app.get('/api/auth/me', requireAuth, (request, response) => {
   response.json({
@@ -557,11 +505,6 @@ app.get('/api/auth/me', requireAuth, (request, response) => {
     points: request.user.points,
   })
 })
-
-
-// =========================
-// LOGOUT
-// =========================
 
 app.post(
   '/api/auth/logout',
@@ -588,21 +531,7 @@ app.post(
   }
 )
 
-
-// =========================
-// PROTECTED PLAYER ROUTES
-// =========================
-
-// Everything below this point requires both:
-// 1. Basic Auth
-// 2. A logged-in PaddleMatch player
-
 app.use(requireAuth)
-
-
-// =========================
-// PADDLE ROUTES
-// =========================
 
 app.get('/api/paddles', async (request, response, next) => {
   try {
@@ -639,11 +568,6 @@ app.get(
   }
 )
 
-
-// =========================
-// PLAYER ROUTES
-// =========================
-
 app.get('/api/players', async (request, response, next) => {
   try {
     response.json(await players.getAll(pool))
@@ -678,13 +602,6 @@ app.get(
     }
   }
 )
-
-
-// =========================
-// MATCH ROUTES
-// =========================
-
-// Send match request
 
 app.post('/api/matches', async (request, response, next) => {
   try {
@@ -762,9 +679,6 @@ app.post('/api/matches', async (request, response, next) => {
   }
 })
 
-
-// Get only matches involving logged-in player
-
 app.get('/api/matches', async (request, response, next) => {
   try {
     const playerId = request.user.player_id
@@ -806,9 +720,6 @@ app.get('/api/matches', async (request, response, next) => {
   }
 })
 
-
-// Accept request
-
 app.patch(
   '/api/matches/:id/accept',
   async (request, response, next) => {
@@ -846,9 +757,6 @@ app.patch(
     }
   }
 )
-
-
-// Record result
 
 app.patch(
   '/api/matches/:id/result',
@@ -957,56 +865,50 @@ app.patch(
   }
 )
 
-app.patch('/api/matches/:id/decline', async (request, response, next) => {
-  try {
-    const matchId = Number(request.params.id)
-    const currentPlayerId = request.user.player_id
+app.patch(
+  '/api/matches/:id/decline',
+  async (request, response, next) => {
+    try {
+      const matchId = Number(request.params.id)
+      const currentPlayerId = request.user.player_id
 
-    if (!Number.isInteger(matchId)) {
-      return response.status(400).json({
-        error: 'Invalid match ID',
-      })
+      if (!Number.isInteger(matchId)) {
+        return response.status(400).json({
+          error: 'Invalid match ID',
+        })
+      }
+
+      const result = await pool.query(
+        `
+          UPDATE matches
+          SET status = 'declined'
+          WHERE id = $1
+            AND opponent_id = $2
+            AND status = 'pending'
+          RETURNING *
+        `,
+        [matchId, currentPlayerId]
+      )
+
+      if (result.rows.length === 0) {
+        return response.status(404).json({
+          error:
+            'Match request not found or cannot be declined',
+        })
+      }
+
+      return response.json(result.rows[0])
+    } catch (error) {
+      next(error)
     }
-
-    const result = await pool.query(
-      `
-        UPDATE matches
-        SET status = 'declined'
-        WHERE id = $1
-          AND opponent_id = $2
-          AND status = 'pending'
-        RETURNING *
-      `,
-      [matchId, currentPlayerId]
-    )
-
-    if (result.rows.length === 0) {
-      return response.status(404).json({
-        error: 'Match request not found or cannot be declined',
-      })
-    }
-
-    return response.json(result.rows[0])
-  } catch (error) {
-    next(error)
   }
-})
-
-
-// =========================
-// 404
-// =========================
+)
 
 app.use((request, response) => {
   response.status(404).json({
     error: 'No such route',
   })
 })
-
-
-// =========================
-// ERROR HANDLER
-// =========================
 
 app.use((error, request, response, next) => {
   console.error(error)
@@ -1015,11 +917,6 @@ app.use((error, request, response, next) => {
     error: 'Something went wrong on the server',
   })
 })
-
-
-// =========================
-// START
-// =========================
 
 const port = process.env.PORT || 3000
 
