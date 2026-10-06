@@ -33,12 +33,6 @@ async function request(
     ...options.headers,
   }
 
-  /*
-   * Player authentication uses our session token.
-   *
-   * We intentionally do NOT put it in the Authorization header
-   * because that header is reserved for HTTP Basic Authentication.
-   */
   if (requiresAuth) {
     const token = getToken()
 
@@ -55,10 +49,6 @@ async function request(
     credentials: 'include',
   })
 
-  /*
-   * The server uses HTTP Basic Authentication for the deployment gate.
-   * If the browser has not authenticated yet, send the user to /unlock.
-   */
   const basicChallenge =
     response.headers
       .get('WWW-Authenticate')
@@ -82,7 +72,7 @@ async function request(
         message = body.error
       }
     } catch {
-      // Response was not JSON.
+
     }
 
     if (response.status === 401) {
@@ -97,10 +87,6 @@ async function request(
     : response.json()
 }
 
-
-// =========================
-// AUTH API
-// =========================
 
 export const login = async (username, password) => {
   const data = await request(
@@ -162,10 +148,6 @@ export const isLoggedIn = () =>
   Boolean(getToken())
 
 
-// =========================
-// PADDLE API
-// =========================
-
 export const listPaddles = () =>
   request('/api/paddles')
 
@@ -173,20 +155,11 @@ export const getPaddle = (id) =>
   request(`/api/paddles/${id}`)
 
 
-// =========================
-// PLAYER API
-// =========================
-
 export const listPlayers = () =>
   request('/api/players')
 
 export const getPlayer = (id) =>
   request(`/api/players/${id}`)
-
-
-// =========================
-// MATCH API
-// =========================
 
 export const sendMatchRequest = (opponentId) =>
   request(

@@ -7,8 +7,79 @@ colours, type, spacing and content.
 **This is submitted as images or a PDF.** A written description of a picture
 scores in the lowest band, because the thing being asked for is the picture.
 
-Put the exported images in `assets/` and link them here, so the repository
-carries them too.
+### Home
+
+**Desktop**
+
+![Home Desktop](assets/home-desktop.png)
+
+**Phone**
+
+![Home Phone](assets/home-phone.png)
+
+### Login
+
+**Desktop**
+
+![Login Desktop](assets/login-desktop.png)
+
+**Phone**
+
+![Login Phone](assets/login-phone.png)
+
+### Sign Up
+
+**Desktop**
+
+![Sign Up Desktop](assets/signup-desktop.png)
+
+**Phone**
+
+![Sign Up Phone](assets/signup-phone.png)
+
+### Paddle Match
+
+**Desktop**
+
+![Paddle Match Desktop](assets/paddle-match-desktop.png)
+
+**Phone**
+
+![Paddle Match Phone](assets/paddle-match-phone.png)
+
+### Paddle Details Modal
+
+**Desktop**
+
+![Paddle Details Modal Desktop](assets/paddle-modal-desktop.png)
+
+**Phone**
+
+![Paddle Details Modal Phone](assets/paddle-modal-phone.png)
+
+### Player Match
+
+**Desktop**
+
+![Player Match Desktop](assets/player-match-desktop.png)
+
+**Phone**
+
+![Player Match Phone](assets/player-match-phone.png)
+
+### Player Match — Empty State
+
+![Player Match Empty State](assets/player-match-empty-state.png)
+
+### Leaderboard
+
+**Desktop**
+
+![Leaderboard Desktop](assets/leaderboard-desktop.png)
+
+**Phone**
+
+![Leaderboard Phone](assets/leaderboard-phone.png)
 
 ## What it should show
 
