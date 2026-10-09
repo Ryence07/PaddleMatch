@@ -151,6 +151,8 @@ For the deployed application, `VITE_API_BASE_URL` points to the deployed Render 
 | CORS_ORIGINS | Server | Allowed frontend origins |
 | NODE_ENV | Server | Server environment |
 | PORT | Server | Port used by the server; provided by the hosting platform in production |
+| APP_USERNAME | Server | Username for deployment Basic Authentication |
+| APP_PASSWORD | Server | Password for deployment Basic Authentication |
 
 Never place database passwords or other secrets in frontend `VITE_` variables because those values are included in the built frontend.
 
@@ -235,11 +237,10 @@ The information comes from the PostgreSQL database rather than hardcoded fronten
 | POST | /api/matches | Sends a match request |
 | GET | /api/matches | Gets match requests for the authenticated player |
 | POST | /api/matches/:id/accept | Accepts a match request |
+| POST | /api/matches/:id/decline | Declines a match request |
 | POST | /api/matches/:id/result | Records the result of a completed match |
 
 Protected endpoints require an authenticated session.
-
----
 
 ---
 
@@ -276,88 +277,38 @@ The API connects to the database using the `DATABASE_URL` environment variable c
 ## Project structure
 
 ```text
-client/
-├── public/
-│   └── images/
-│       ├── assets/
-│       │   ├── fb.png
-│       │   ├── ig.png
-│       │   └── mail.png
-│       ├── paddles/
-│       │   ├── paddle-franklin-signature.png
-│       │   ├── paddle-hyperion.png
-│       │   ├── paddle-joola-essentials.png
-│       │   ├── paddle-slk-evo-control.png
-│       │   └── paddle-slk-halo-power.png
-│       └── paddlematch-hero.png
+client/                         React frontend built with Vite
+├── public/images/              Images and paddle assets
 ├── src/
-│   ├── api/
-│   │   ├── httpApi.js
-│   │   ├── index.js
-│   │   ├── mockApi.js
-│   │   └── seed.json
-│   ├── components/
-│   │   ├── DemoNotice.jsx
-│   │   ├── Footer.jsx
-│   │   ├── Header.jsx
-│   │   ├── PaddleCard.jsx
-│   │   ├── PaddleDetailsModal.jsx
-│   │   ├── PlayerCard.jsx
-│   │   └── SelectField.jsx
-│   ├── data/
-│   │   ├── paddles.js
-│   │   └── players.js
-│   ├── pages/
-│   │   ├── AccessGate.jsx
-│   │   ├── Home.jsx
-│   │   ├── Leaderboard.jsx
-│   │   ├── Login.jsx
-│   │   ├── PaddleMatch.jsx
-│   │   └── PlayerMatch.jsx
-│   ├── App.jsx
-│   ├── main.jsx
-│   └── styles.css
-├── .env.example
-├── index.html
-├── package.json
-└── vite.config.js
+│   ├── api/                    API and mock API files
+│   ├── components/             Reusable UI components
+│   ├── data/                   Frontend paddle and player data
+│   ├── pages/                  Main application pages
+│   ├── App.jsx                 Application routes
+│   ├── main.jsx                React entry point
+│   └── styles.css              Global styles
+├── .env.example                Frontend environment variables
+├── package.json                Frontend dependencies and scripts
+└── vite.config.js              Vite configuration
 
-server/
-├── db/
-│   ├── pool.js
-│   ├── run.js
-│   ├── schema.sql
-│   └── seed.sql
-├── .env.example
-├── Dockerfile
-├── package.json
-├── paddlesRepo.js
-├── playersRepo.js
-└── server.js
+server/                         Express backend and database
+├── db/                         Database connection, schema, and seed files
+├── .env.example                Backend environment variables
+├── Dockerfile                  Container configuration
+├── package.json                Backend dependencies and scripts
+├── paddlesRepo.js              Paddle database operations
+├── playersRepo.js              Player database operations
+└── server.js                   Express server and API routes
 
-docs/
-├── assets/
-│   ├── home-desktop.png
-│   ├── home-phone.png
-│   ├── leaderboard-desktop.png
-│   ├── leaderboard-phone.png
-│   ├── login-desktop.png
-│   ├── login-phone.png
-│   ├── paddle-match-desktop.png
-│   ├── paddle-match-phone.png
-│   ├── paddle-modal-desktop.png
-│   ├── paddle-modal-phone.png
-│   ├── player-match-desktop.png
-│   ├── player-match-phone.png
-│   ├── signup-desktop.png
-│   └── signup-phone.png
-├── 01-proposal.md
-├── 02-mockup.md
-├── 03-design-system.md
-├── 04-weekly-reports.md
-├── 05-demo-video.md
-├── 06-security-and-privacy.md
-└── README.md
+docs/                           Project documentation
+├── assets/                     Screenshots and design assets
+├── 01-proposal.md              Project proposal
+├── 02-mockup.md                UI mockups
+├── 03-design-system.md         Design system
+├── 04-weekly-reports.md        Weekly progress reports
+├── 05-demo-video.md            Demo video information
+├── 06-security-and-privacy.md  Security and privacy checklist
+└── README.md                   Documentation guide
 
 AI-USAGE.md
 LICENSE
@@ -392,18 +343,17 @@ The frontend is hosted on GitHub Pages, while the Express API is hosted on Rende
 
 ## Known issues and next steps
 
-- Complete final testing of the application using multiple accounts and different match scenarios.
-- Complete the remaining security and documentation review.
-- Finish the final screenshots and Week 3 demonstration video.
-- Continue improving the application based on testing before the final submission.
+- The application is ready for final submission and demonstration.
+- The deployed application has been tested with the main user and match workflows.
+- Future improvements may include further testing and additional features.
 
 ---
 
 ## What I would do next
 
-1. Complete final testing using multiple accounts and different match scenarios.
-2. Review the application for remaining issues and complete the required security documentation.
-3. Prepare the final documentation, presentation, and Week 3 demonstration video.
+1. Continue improving PaddleMatch based on future testing and feedback.
+2. Add more features or refinements if the project is continued after the course.
+3. Maintain and update the application as needed.
 
 ---
 
