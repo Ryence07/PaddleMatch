@@ -9,10 +9,11 @@ PaddleMatch is a web application that helps pickleball players find suitable pad
 **Demo video:** [PaddleMatch Demo](https://drive.google.com/drive/folders/17jWYAvV4oCgVH8NHXdZHq_b09t4mJNYW?usp=sharing)
 
 <img width="1366" height="901" alt="home-desktop" src="https://github.com/user-attachments/assets/2912ef88-9a63-48e6-9c1a-6dd4ef056ec3" />
-<img width="1366" height="644" alt="loginpaddlematch" src="https://github.com/user-attachments/assets/b60041f2-2683-44d1-870e-c7d7761e0554" />
-<img width="1366" height="1476" alt="paddlematchpage" src="https://github.com/user-attachments/assets/d9686b75-b6d4-4b4e-aed0-7d70d5cb72ca" />
-<img width="1366" height="955" alt="3" src="https://github.com/user-attachments/assets/d1cf1a40-aedc-4850-9f23-1914b8dd0791" />
-<img width="1366" height="741" alt="4" src="https://github.com/user-attachments/assets/03353d65-9bfc-4d3e-b35e-19ee5bccdbcf" />
+<img width="1366" height="944" alt="signup-desktop" src="https://github.com/user-attachments/assets/db9e8d43-0267-48c5-a15e-5a798db65500" />
+<img width="1366" height="769" alt="login-desktop" src="https://github.com/user-attachments/assets/133f5a15-1d74-4506-9b99-45e4cc491adb" />
+<img width="1366" height="1393" alt="paddle-match-desktop" src="https://github.com/user-attachments/assets/74ca2855-ba26-444c-9c49-83dec500b539" />
+<img width="1366" height="1435" alt="player-match-desktop" src="https://github.com/user-attachments/assets/6a853546-4622-4b23-bad1-69d795721576" />
+<img width="1366" height="769" alt="leaderboard-desktop" src="https://github.com/user-attachments/assets/deefd844-9cdf-4944-b48c-da4b676b9d7b" />
 
 ---
 
